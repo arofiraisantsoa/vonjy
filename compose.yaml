@@ -38,5 +38,6 @@ services:
 volumes:
   data:
 networks:
+  aroloza-net:
   proxy: 
     external: true
