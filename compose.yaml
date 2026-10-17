@@ -32,5 +32,9 @@ services:
       options:
         max-size: 10m
         max-file: '3'
+    networks:
+      - aroloza-net
 volumes:
   data:
+networks:
+   aroloza-net
