@@ -34,7 +34,9 @@ services:
         max-file: '3'
     networks:
       - aroloza-net
+      - proxy
 volumes:
   data:
 networks:
-  aroloza-net:
+  proxy: 
+    external: true
