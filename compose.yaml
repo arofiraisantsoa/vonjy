@@ -9,12 +9,10 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      HOST: 0.0.0.0
-      PORT: '3010'
       DB_PATH: /app/data/vonjy.db
       ADMIN_TOKEN: ${ADMIN_TOKEN:?Renseignez ADMIN_TOKEN dans .env (16 caracteres minimum)}
     ports:
-      - '${BIND_IP:-127.0.0.1}:${APP_PORT:-3010}:30100'
+      - '${BIND_IP:-127.0.0.1}:${APP_PORT:-3000}:3000'
     volumes:
       - data:/app/data
     init: true
