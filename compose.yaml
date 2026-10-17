@@ -1,0 +1,36 @@
+name: vonjy
+services:
+  app:
+    image: vonjy:local
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      DB_PATH: /app/data/vonjy.db
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Renseignez ADMIN_TOKEN dans .env (16 caracteres minimum)}
+    ports:
+      - '${BIND_IP:-127.0.0.1}:${APP_PORT:-3000}:3000'
+    volumes:
+      - data:/app/data
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+volumes:
+  data:

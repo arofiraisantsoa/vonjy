@@ -1,0 +1,12 @@
+node_modules
+.git
+.env
+.env.*
+!.env.example
+!docker/.env.example
+data
+backups
+*.db
+*.db-*
+*.zip
+npm-debug.log*
