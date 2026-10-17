@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vonjy, tableau du fokontany</title>
+<style>
+:root{
+  --bg:#f3f5f2; --surface:#fff; --sunk:#e8ece6; --line:#cdd5cb; --fg:#18211c; --muted:#5a6a60;
+  --accent:#1f6f5c; --alert:#c2361f; --alert-soft:#f8dcd5; --warn:#a86a00; --warn-soft:#f6e6c4; --ok:#2c7a3f; --ok-soft:#d8eedb;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#121815; --surface:#1a221e; --sunk:#222c27; --line:#33403a; --fg:#e6ece7; --muted:#9aaba1;
+  --accent:#5fc3a6; --alert:#ff7b62; --alert-soft:#45221b; --warn:#f0b54a; --warn-soft:#3f3115; --ok:#74cf8a; --ok-soft:#1d3a24; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,"Segoe UI",sans-serif;padding:16px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+h1{margin:0;font-size:24px}
+h2{margin:0 0 8px;font-size:17px}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav button,.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:7px 12px;cursor:pointer}
+nav button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.scroll{overflow-x:auto}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px}
+.s-open{background:var(--alert);color:var(--surface)} .s-escalated{background:var(--warn);color:var(--surface)}
+.s-acked{background:var(--ok);color:var(--surface)} .s-closed,.s-cancelled{background:var(--sunk);color:var(--muted)}
+form{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted)}
+input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.muted{color:var(--muted);font-size:13px}
+.msg{padding:8px 10px;border-radius:8px;font-size:14px}
+.msg.err{background:var(--alert-soft)} .msg.ok{background:var(--ok-soft)}
+pre{white-space:pre-wrap;font-size:12.5px;background:var(--sunk);padding:8px;border-radius:8px;margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vonjy · tableau du fokontany</h1>
+    <nav id="nav" hidden>
+      <button data-v="alertes" aria-pressed="true">Alertes</button>
+      <button data-v="remises">Remises</button>
+      <button data-v="planning">Planning</button>
+      <button data-v="commune">Commune</button>
+      <button data-v="controles">Contrôles</button>
+      <button data-v="simulateur">Simulateur</button>
+    </nav>
+  </header>
+
+  <section id="login">
+    <h2>Connexion</h2>
+    <form id="loginForm">
+      <label for="token">Jeton d'accès<input id="token" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Ouvrir le tableau</button>
+    </form>
+    <p class="muted">Le jeton est défini dans la configuration du serveur (ADMIN_TOKEN).</p>
+  </section>
+
+  <div id="flash"></div>
+
+  <section data-view="alertes" hidden>
+    <h2>Alertes <span class="muted" id="refresh"></span></h2>
+    <div class="scroll"><table><thead><tr><th>#</th><th>Heure</th><th>Habitant</th><th>Secteur</th><th>État</th><th>Pris en charge</th><th></th></tr></thead><tbody id="alerts"></tbody></table></div>
+    <pre id="events" hidden></pre>
+  </section>
+
+  <section data-view="remises" hidden>
+    <h2>Enregistrer une remise aux forces de l'ordre</h2>
+    <form id="hoForm">
+      <label for="hoAlert">Alerte n°<input id="hoAlert" type="number" min="1"></label>
+      <label for="hoUnit">Unité<input id="hoUnit" required placeholder="Brigade de …"></label>
+      <label for="hoAgent">Agent qui reçoit<input id="hoAgent" required placeholder="Nom ou matricule"></label>
+      <label for="hoW1">Témoin 1<input id="hoW1" required></label>
+      <label for="hoW2">Témoin 2<input id="hoW2" required></label>
+      <button class="btn primary" type="submit">Enregistrer</button>
+    </form>
+    <p class="muted">Une remise enregistrée ne peut plus être modifiée.</p>
+    <div class="scroll"><table><thead><tr><th>#</th><th>Date</th><th>Unité</th><th>Agent</th><th>Témoins</th><th>Suite</th></tr></thead><tbody id="handovers"></tbody></table></div>
+  </section>
+
+  <section data-view="planning" hidden>
+    <h2>Gardes de la nuit</h2>
+    <form id="drawForm">
+      <label for="drFk">Fokontany<select id="drFk"></select></label>
+      <label for="drSectors">Secteurs (séparés par des virgules)<input id="drSectors" value="Nord, Sud"></label>
+      <button class="btn primary" type="submit">Tirer les binômes</button>
+      <button class="btn" type="button" id="notifyBtn">Envoyer le planning par SMS</button>
+    </form>
+    <div class="scroll"><table><thead><tr><th>Secteur</th><th>Membre</th></tr></thead><tbody id="shifts"></tbody></table></div>
+  </section>
+
+  <section data-view="commune" hidden>
+    <h2>Vue de la commune, 7 derniers jours</h2>
+    <p class="muted">Totaux par fokontany uniquement : aucun nom, aucune adresse.</p>
+    <div class="scroll"><table><thead><tr><th>Fokontany</th><th>Incidents</th><th>Fausses alertes</th><th>Escalades</th><th>Délai moyen de réponse</th></tr></thead><tbody id="stats"></tbody></table></div>
+  </section>
+
+  <section data-view="controles" hidden>
+    <h2>Contrôles</h2>
+    <p><button class="btn" id="verifyBtn">Vérifier l'intégrité du journal</button></p>
+    <div id="verifyOut"></div>
+    <h2 style="margin-top:14px">Signaux à examiner</h2>
+    <div id="anomalies" class="muted">Chargement…</div>
+  </section>
+
+  <section data-view="simulateur" hidden>
+    <h2>Simulateur de SMS</h2>
+    <p class="muted">Envoie un SMS comme si un téléphone l'avait écrit. Disponible seulement si SIMULATION=true sur le serveur.</p>
+    <form id="simForm">
+      <label for="simFrom">Numéro de l'expéditeur<input id="simFrom" value="034 00 000 01"></label>
+      <label for="simText">Message<input id="simText" value="VONJY"></label>
+      <button class="btn primary" type="submit">Envoyer</button>
+    </form>
+    <p class="muted">Numéros de démo : Hanta 034 00 000 01 · Rado 034 00 001 01 · Hery 034 00 001 02 · Fidy 034 00 001 03</p>
+    <h2 style="margin-top:12px">Derniers SMS envoyés par la plateforme</h2>
+    <div class="scroll"><table><thead><tr><th>Heure</th><th>Vers</th><th>Message</th><th>État</th></tr></thead><tbody id="outbox"></tbody></table></div>
+  </section>
+</div>
+<script>
+(function(){
+  var token = '';
+  try { token = sessionStorage.getItem('vonjy_token') || ''; } catch(e) {}
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+  var hm = function(iso){ if(!iso) return ''; var d = new Date(iso); return d.toLocaleString('fr-FR', {timeZone:'Indian/Antananarivo', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); };
+  var labels = {open:'En attente', escalated:'Escalade', acked:'Pris en charge', closed:'Clos', cancelled:'Fausse alerte'};
+  var view = 'alertes';
+
+  function flash(text, ok){ $('flash').innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(text) + '</div>' : ''; }
+  async function api(path, opts){
+    opts = opts || {};
+    var res = await fetch(path, { method: opts.method || 'GET', headers: Object.assign({ Authorization: 'Bearer ' + token }, opts.body ? { 'Content-Type': 'application/json' } : {}), body: opts.body ? JSON.stringify(opts.body) : undefined });
+    var data = await res.json().catch(function(){ return {}; });
+    if (res.status === 401) { showLogin(); throw new Error('Jeton refusé'); }
+    if (!res.ok) throw new Error(data.error || ('Erreur ' + res.status));
+    return data;
+  }
+  function showLogin(){ $('login').hidden = false; $('nav').hidden = true; document.querySelectorAll('[data-view]').forEach(function(s){ s.hidden = true; }); }
+  function show(v){
+    view = v;
+    document.querySelectorAll('#nav button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === v)); });
+    document.querySelectorAll('[data-view]').forEach(function(s){ s.hidden = s.dataset.view !== v; });
+    load();
+  }
+  async function load(){
+    try {
+      if (view === 'alertes') {
+        var rows = await api('/api/alerts');
+        $('alerts').innerHTML = rows.map(function(a){
+          var act = (a.status === 'closed' || a.status === 'cancelled') ? '' : '<button class="btn" data-close="' + a.id + '">Clore</button>';
+          return '<tr><td>' + a.id + '</td><td>' + hm(a.created_at) + '</td><td>' + esc(a.resident_name || a.sender_phone) + '<div class="muted">' + esc(a.address || 'numéro non inscrit') + '</div></td><td>' + esc(a.sector || '') + '</td><td><span class="pill s-' + a.status + '">' + labels[a.status] + '</span></td><td>' + esc(a.acked_by_name || '') + '</td><td><button class="btn" data-ev="' + a.id + '">Journal</button> ' + act + '</td></tr>';
+        }).join('') || '<tr><td colspan="7" class="muted">Aucune alerte pour le moment.</td></tr>';
+        $('refresh').textContent = '· mis à jour ' + new Date().toLocaleTimeString('fr-FR');
+      } else if (view === 'remises') {
+        var hs = await api('/api/handovers');
+        $('handovers').innerHTML = hs.map(function(h){
+          return '<tr><td>' + h.id + '</td><td>' + hm(h.at) + '</td><td>' + esc(h.unit) + '</td><td>' + esc(h.agent) + '</td><td>' + esc(h.witness1) + ', ' + esc(h.witness2) + '</td><td><select data-fu="' + h.id + '" aria-label="Suite donnée"><option value="">' + esc(h.suite || 'à renseigner') + '</option><option value="poursuivi">Poursuivi</option><option value="libere">Libéré</option><option value="revu_dans_le_quartier">Revu dans le quartier</option><option value="inconnu">Inconnu</option></select></td></tr>';
+        }).join('') || '<tr><td colspan="6" class="muted">Aucune remise enregistrée.</td></tr>';
+      } else if (view === 'planning') {
+        var fks = await api('/api/fokontany');
+        if (!$('drFk').options.length) $('drFk').innerHTML = fks.map(function(f){ return '<option value="' + f.id + '">' + esc(f.name) + '</option>'; }).join('');
+        var sh = await api('/api/shifts');
+        $('shifts').innerHTML = sh.rows.map(function(r){ return '<tr><td>' + esc(r.sector === 'RESERVE' ? 'Réserve' : r.sector) + '</td><td>' + esc(r.name) + '</td></tr>'; }).join('') || '<tr><td colspan="2" class="muted">Aucun planning pour la nuit du ' + esc(sh.night) + '.</td></tr>';
+      } else if (view === 'commune') {
+        var st = await api('/api/stats/weekly');
+        $('stats').innerHTML = st.rows.map(function(r){ return '<tr><td>' + esc(r.fokontany) + '</td><td>' + (r.incidents || 0) + '</td><td>' + (r.fausses_alertes || 0) + '</td><td>' + (r.escalades || 0) + '</td><td>' + (r.delai_moyen_s != null ? Math.round(r.delai_moyen_s) + ' s' : '') + '</td></tr>'; }).join('');
+      } else if (view === 'controles') {
+        var an = await api('/api/anomalies');
+        var txt = {garde_incidents:function(a){ return a.name + ' était de garde lors de ' + a.incidents + ' incidents (moyenne ' + a.moyenne + ').'; },
+                   alertes_sans_reponse:function(a){ return a.name + ' n\'a pas répondu à ' + a.fois + ' alertes.'; },
+                   remis_puis_revus:function(a){ return a.cas + ' suspects remis à « ' + a.unit + ' » ont été revus dans le quartier.'; }};
+        $('anomalies').innerHTML = an.length ? '<ul>' + an.map(function(a){ return '<li>' + esc(txt[a.type](a)) + '</li>'; }).join('') + '</ul>' : 'Aucun signal pour le moment.';
+      } else if (view === 'simulateur') {
+        var ob = await api('/api/simulate/outbox');
+        $('outbox').innerHTML = ob.map(function(o){ return '<tr><td>' + hm(o.at) + '</td><td>' + esc(o.phone) + '</td><td>' + esc(o.text) + '</td><td>' + esc(o.status) + '</td></tr>'; }).join('');
+      }
+    } catch (e) { flash(e.message); }
+  }
+
+  $('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault(); token = $('token').value.trim();
+    try { await api('/api/fokontany'); try { sessionStorage.setItem('vonjy_token', token); } catch(x) {}
+      $('login').hidden = true; $('nav').hidden = false; flash(''); show('alertes');
+    } catch (err) { flash('Jeton refusé. Vérifiez ADMIN_TOKEN sur le serveur.'); }
+  });
+  $('nav').addEventListener('click', function(e){ var b = e.target.closest('button'); if (b) show(b.dataset.v); });
+  $('alerts').addEventListener('click', async function(e){
+    var c = e.target.closest('[data-close]'), v = e.target.closest('[data-ev]');
+    try {
+      if (c) { await api('/api/alerts/' + c.dataset.close + '/close', { method: 'POST', body: { outcome: 'traite' } }); flash('Alerte ' + c.dataset.close + ' close.', true); load(); }
+      if (v) { var ev = await api('/api/alerts/' + v.dataset.ev + '/events'); $('events').hidden = false; $('events').textContent = ev.map(function(x){ return hm(x.at) + '  ' + x.type + '  ' + (x.actor || '') + '  ' + JSON.stringify(x.detail); }).join('\n'); }
+    } catch (err) { flash(err.message); }
+  });
+  $('hoForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    try { await api('/api/handovers', { method: 'POST', body: { alertId: $('hoAlert').value ? Number($('hoAlert').value) : null, unit: $('hoUnit').value, agent: $('hoAgent').value, witness1: $('hoW1').value, witness2: $('hoW2').value } });
+      flash('Remise enregistrée.', true); e.target.reset(); load(); } catch (err) { flash(err.message); }
+  });
+  $('handovers').addEventListener('change', async function(e){
+    var s = e.target.closest('[data-fu]'); if (!s || !s.value) return;
+    try { await api('/api/handovers/' + s.dataset.fu + '/followups', { method: 'POST', body: { status: s.value } }); flash('Suite enregistrée.', true); load(); } catch (err) { flash(err.message); }
+  });
+  $('drawForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    try { var sectors = $('drSectors').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      await api('/api/shifts/draw', { method: 'POST', body: { fokontanyId: Number($('drFk').value), sectors: sectors } }); flash('Binômes tirés.', true); load(); } catch (err) { flash(err.message); }
+  });
+  $('notifyBtn').addEventListener('click', async function(){
+    try { var r = await api('/api/shifts/notify', { method: 'POST', body: { fokontanyId: Number($('drFk').value) } }); flash(r.notified + ' SMS de planning envoyés.', true); } catch (err) { flash(err.message); }
+  });
+  $('verifyBtn').addEventListener('click', async function(){
+    try { var r = await api('/api/audit/verify'); $('verifyOut').innerHTML = r.ok ? '<div class="msg ok">Journal intact : ' + r.entries + ' entrées vérifiées.</div>' : '<div class="msg err">Journal altéré à l\'entrée ' + r.brokenAt + '.</div>'; } catch (err) { flash(err.message); }
+  });
+  $('simForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    try { var r = await api('/api/simulate/sms', { method: 'POST', body: { from: $('simFrom').value, text: $('simText').value } }); flash('SMS traité : ' + JSON.stringify(r), true); load(); } catch (err) { flash(err.message); }
+  });
+
+  setInterval(function(){ if (!$('nav').hidden && (view === 'alertes' || view === 'simulateur')) load(); }, 5000);
+  if (token) { api('/api/fokontany').then(function(){ $('login').hidden = true; $('nav').hidden = false; show('alertes'); }).catch(showLogin); }
+})();
+</script>
+</body>
+</html>

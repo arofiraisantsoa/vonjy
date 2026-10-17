@@ -1,0 +1,22 @@
+{
+  "name": "vonjy-prototype",
+  "version": "0.1.0",
+  "description": "Prototype Vonjy : alerte de quartier par SMS pour les fokontany",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file=.env src/server.js",
+    "seed": "node --env-file=.env scripts/seed.js",
+    "test": "node --test test/*.test.js",
+    "demo": "rm -f data/demo.db* && DB_PATH=./data/demo.db node scripts/seed.js && DB_PATH=./data/demo.db ADMIN_TOKEN=demo-demo-demo-demo SIMULATION=true node src/server.js"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "better-sqlite3": "^11.10.0",
+    "fastify": "^4.29.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
