@@ -20,6 +20,6 @@ COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node docker/healthcheck.js ./docker/healthcheck.js
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
-EXPOSE 3000
+EXPOSE 3010
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD ["node", "docker/healthcheck.js"]
 CMD ["node", "src/server.js"]
